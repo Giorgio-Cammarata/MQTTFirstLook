@@ -22,43 +22,34 @@ namespace MQTTFirstLook.Client
     {
         static void Main(string[] args)
         {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Enrich.FromLogContext()
-                .WriteTo.Console()
-                .CreateLogger();
+            ConfigureLogger();
 
             #region Implementation
 
-            // Creates a new client (MQTTClient will coonnect to our broker via TCP)
+            // Setup Client options. MQTTClient will connect to broker via TCP
             MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
                                         .WithClientId("Test.ClientId")
                                         .WithTcpServer("localhost", 707);
 
-            // Create client options objects
             ManagedMqttClientOptions options = new ManagedMqttClientOptionsBuilder()
                                     .WithAutoReconnectDelay(TimeSpan.FromSeconds(60))
                                     .WithClientOptions(builder.Build())
                                     .Build();
 
-            // Creates the client object
             IManagedMqttClient mqttClient = new MqttFactory().CreateManagedMqttClient();
 
-            // Set up handlers
-            mqttClient.ConnectedHandler = new MqttClientConnectedHandlerDelegate(OnConnected);
-            mqttClient.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(OnDisconnected);
-            mqttClient.ConnectingFailedHandler = new ConnectingFailedHandlerDelegate(OnConnectingFailed);
-
-            mqttClient.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(
-                a =>
-                {
-                    Log.Logger.Information("Message recieved: {payload}", a.ApplicationMessage);
-                });
+            SetupClientHandlers(mqttClient);
 
             // Starts a connection with the Broker
             mqttClient.StartAsync(options).GetAwaiter().GetResult();
 
-            // Send a new message to the broker every 2 seconds
+            SendPeriodicMessagesToTheBroker(mqttClient, 2000);
+
+            #endregion
+        }
+
+        private static void SendPeriodicMessagesToTheBroker(IManagedMqttClient mqttClient, int millisecondsDelay)
+        {
             while (true)
             {
                 string json = JsonConvert.SerializeObject(
@@ -70,10 +61,30 @@ namespace MQTTFirstLook.Client
 
                 mqttClient.PublishAsync("Test.ClientId/topic/json", json);
 
-                Task.Delay(2000).GetAwaiter().GetResult();
+                Task.Delay(millisecondsDelay).GetAwaiter().GetResult();
             }
+        }
 
-            #endregion
+        private static void SetupClientHandlers(IManagedMqttClient mqttClient)
+        {
+            mqttClient.ConnectedHandler = new MqttClientConnectedHandlerDelegate(OnConnected);
+            mqttClient.DisconnectedHandler = new MqttClientDisconnectedHandlerDelegate(OnDisconnected);
+            mqttClient.ConnectingFailedHandler = new ConnectingFailedHandlerDelegate(OnConnectingFailed);
+
+            mqttClient.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(
+                a =>
+                {
+                    Log.Logger.Information("Message recieved: {payload}", a.ApplicationMessage);
+                });
+        }
+
+        private static void ConfigureLogger()
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger();
         }
 
         #region Handlers

@@ -20,11 +20,7 @@ namespace MQTTFirstLook.Broker
 
         static void Main(string[] args)
         {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .Enrich.FromLogContext()
-                .WriteTo.Console()
-                .CreateLogger();
+            ConfigureLogger();
 
             #region Implementation
 
@@ -40,7 +36,6 @@ namespace MQTTFirstLook.Broker
                 .WithConnectionValidator(OnNewConnection)
                 .WithApplicationMessageInterceptor(OnNewMessage);
 
-            // Creates a new MQTT server     
             IMqttServer mqttServer = new MqttFactory().CreateMqttServer();
 
             // Start the server with options  
@@ -50,6 +45,15 @@ namespace MQTTFirstLook.Broker
             Console.ReadLine();
 
             #endregion
+        }
+
+        private static void ConfigureLogger()
+        {
+            Log.Logger = new LoggerConfiguration()
+                            .MinimumLevel.Debug()
+                            .Enrich.FromLogContext()
+                            .WriteTo.Console()
+                            .CreateLogger();
         }
 
         #region Handlers
